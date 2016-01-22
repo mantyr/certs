@@ -62,7 +62,12 @@ func runIssue(cmd *cobra.Command, args []string) {
 		log.Fatalf("[ERROR] %v", err)
 	}
 
-	domainList, domainMap, err := loadDomains(args[0], delim)
+	skipDupes, err := cmd.Flags().GetBool("skip-duplicates")
+	if err != nil {
+		log.Fatalf("[ERROR] %v", err)
+	}
+
+	domainList, domainMap, err := loadDomains(args[0], delim, skipDupes)
 	if err != nil {
 		log.Fatalf("[ERROR] %v", err)
 	}
@@ -109,7 +114,10 @@ func runIssue(cmd *cobra.Command, args []string) {
 // and returns each domain in a slice (ordered) and in a map (unordered).
 // These dual return values allow you to iterate in order, but also do
 // quick membership checking, despite using a more memory.
-func loadDomains(filename string, delim string) ([][]string, map[string]struct{}, error) {
+// If skipDupes is true, domain names will only be acknowledged the first
+// time they appear; otherwise it will be skipped. This can be useful
+// if the user is not issuing complex combinations of SAN certificates.
+func loadDomains(filename string, delim string, skipDupes bool) ([][]string, map[string]struct{}, error) {
 	comma, err := standardDelimiter(delim)
 	if err != nil {
 		return nil, nil, err
@@ -140,7 +148,10 @@ func loadDomains(filename string, delim string) ([][]string, map[string]struct{}
 		var cleanedRow []string
 		for _, val := range row {
 			domain := strings.TrimSpace(strings.ToLower(val))
-			if domain != "" {
+			if domain == "" {
+				continue
+			}
+			if _, duplicate := domainMap[domain]; !skipDupes || !duplicate {
 				cleanedRow = append(cleanedRow, domain)
 				domainMap[domain] = struct{}{}
 			}
@@ -193,6 +204,7 @@ func init() {
 	issueCmd.Flags().String("email", "", "Email address to register with CA for account recovery")
 	issueCmd.Flags().String("out", issuance.DefaultWorkspace, "Path to folder in which to store assets")
 	issueCmd.Flags().Bool("agree", false, "Indicate your agreement to CA's legal terms")
+	issueCmd.Flags().Bool("skip-duplicates", false, "Ignore repeated appearances of a domain name")
 }
 
 const defaultDelimiter = ","
