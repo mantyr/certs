@@ -14,8 +14,12 @@
 
 package main
 
-import "github.com/mholt/certs/cmd"
+import (
+	"github.com/mholt/certs/cmd"
+	"github.com/xenolf/lego/acme"
+)
 
 func main() {
+	acme.UserAgent = "certs/0.1.0"
 	cmd.Execute()
 }
